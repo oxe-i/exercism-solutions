@@ -1,0 +1,15 @@
+name = "phone-number"
+version = "0.1.0"
+defaultTargets = ["PhoneNumberTest"]
+testDriver = "PhoneNumberTest"
+
+[[lean_lib]]
+name = "LeanTest"
+srcDir = "vendor/LeanTest"
+
+[[lean_lib]]
+name = "PhoneNumber"
+
+[[lean_exe]]
+name = "PhoneNumberTest"
+root = "PhoneNumberTest"
