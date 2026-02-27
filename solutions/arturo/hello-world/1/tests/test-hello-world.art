@@ -1,0 +1,9 @@
+import.version:3.0.0 {unitt}! 
+import {src/hello-world}!
+
+describe "Hello World!" [
+    it "hello returns 'Hello, World!'" [
+        expected: "Hello, World!"
+        expects.be:'equal? @[expected hello]
+    ]
+]
