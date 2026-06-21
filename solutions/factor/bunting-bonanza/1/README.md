@@ -1,0 +1,232 @@
+# Bunting Bonanza
+
+Welcome to Bunting Bonanza on Exercism's Factor Track.
+If you need help running the tests or submitting your code, check out `HELP.md`.
+If you get stuck on the exercise, check out `HINTS.md`, but try and solve it without using those first :)
+
+## Introduction
+
+When you need a row of `n` values where each one depends on its
+position, Factor's `<iota>` and `map` cooperate to do the job
+without writing a loop counter.
+
+## `<iota>` and `map`
+
+`<iota>` (in [`sequences`][sequences]) takes a non-negative
+integer `n` and returns a *virtual* sequence of the integers
+`0, 1, …, n-1`. `map` then walks it, applying your quotation to
+each element:
+
+```factor
+USING: math sequences ;
+
+5 <iota> [ 2 * ] map .   ! => { 0 2 4 6 8 }
+```
+
+The quotation receives one integer — the index — and leaves the
+value for that position on the stack.
+
+## Iterating and repeating by count
+
+When you only need the *side effects* of visiting each index — not a
+new sequence — `each-integer` (in [`math`][math]) runs a quotation
+over `0, 1, …, n-1`:
+
+```
+each-integer ( n quot: ( i -- ) -- )
+```
+
+`replicate` (in [`sequences`][sequences]) calls a quotation `n`
+times and collects the results, ignoring the index — handy for
+building `n` independent values:
+
+```
+replicate ( n quot: ( -- elt ) -- seq )
+```
+
+```factor
+USING: sequences ;
+
+3 [ { 0 0 } ] replicate .   ! => { { 0 0 } { 0 0 } { 0 0 } }
+```
+
+## Bounded ranges
+
+When the index range doesn't start at `0`, or you want it
+inclusive at both ends, the [`ranges`][ranges]
+vocabulary provides bracket-notation literals. Square brackets
+include the endpoint; round brackets exclude it.
+
+```
+[a..b]    ! a, a+1, …, b      (inclusive)
+[a..b)    ! a, a+1, …, b-1    (half-open at the top)
+```
+
+```factor
+USING: math ranges sequences ;
+
+3 7 [a..b] [ 2 * ] map .   ! => { 6 8 10 12 14 }
+3 7 [a..b) [ 2 * ] map .   ! => { 6 8 10 12 }
+```
+
+A few common one-arg shorthands:
+
+```
+[1..b]    ! 1, 2, …, b        (same as 1 b [a..b])
+[1..b)    ! 1, 2, …, b-1      (same as 1 b [a..b))
+[0..b)    ! 0, 1, …, b-1      (same as 0 b [a..b), and same as `b <iota>`)
+```
+
+```factor
+6 [1..b] [ sq ] map .      ! => { 1 4 9 16 25 36 }
+6 [1..b) [ sq ] map .      ! => { 1 4 9 16 25 }
+4 [0..b) [ 1 + ] map .     ! => { 1 2 3 4 }
+```
+
+`<iota>` is the most common form; `[a..b]` and friends are the
+right tool when the range starts somewhere other than `0` or
+needs an inclusive upper bound.
+
+## Open lower bounds and possibly-empty ranges
+
+Square brackets *include* an endpoint; round brackets *exclude*
+it. The same trick on the left gives `(a..b]` and `(a..b)`:
+
+```
+(a..b]    ! a+1, …, b              (lower open, upper inclusive)
+(a..b)    ! a+1, …, b-1            (both open)
+```
+
+`0 n (a..b]` gives `{ 1 … n }` for `n > 0` and `{ }` for `n = 0`
+— the natural shape when iterating "every positive integer up
+to and including `n`."
+
+## Descending ranges
+
+All four bracket forms — `[a..b]`, `[a..b)`, `(a..b]`, `(a..b)`
+— count *down* when `a > b`, not toward an empty result:
+
+```factor
+USING: ranges sequences ;
+
+5 1 [a..b] >array .   ! => { 5 4 3 2 1 }
+1 0 [a..b] >array .   ! => { 1 0 }   (not empty!)
+```
+
+## Building a string by position
+
+`map` yields whatever shape its quotation returns. If the
+quotation leaves a character code on the stack, `>string` (in
+[`strings`][strings]) turns the result into a string:
+
+```factor
+USING: math sequences strings ;
+
+4 <iota> [ 2 * CHAR: A + ] map >string .   ! => "ACEG"
+```
+
+`CHAR: A` parses to the integer `65`. The quotation here doubles
+the index and adds that base, which lands on every other capital
+letter. Any arithmetic you stack on top of the index decides
+what character ends up at that position.
+
+## Choosing per position
+
+When the character depends on a *condition* about the index, do
+the choosing inside the quotation:
+
+```factor
+USING: kernel math sequences strings ;
+
+5 <iota> [ 3 < [ CHAR: a ] [ CHAR: b ] if ] map >string .
+! => "aaabb"
+```
+
+The first three positions test `i 3 <` as `t`, so they get `a`;
+the rest get `b`. The same shape — `[ <test> [ <yes> ] [ <no> ]
+if ]` — covers parity tests with `even?` / `odd?` (in
+[`math`][math]) and "every k-th position" tests with `mod` and
+`zero?`.
+
+[sequences]: https://docs.factorcode.org/content/article-sequences.html
+[strings]: https://docs.factorcode.org/content/article-strings.html
+[math]: https://docs.factorcode.org/content/vocab-math.html
+[ranges]: https://docs.factorcode.org/content/vocab-ranges.html
+
+## Instructions
+
+A party robot is stringing up bunting for the big bonanza. Each
+line of bunting is a horizontal row of `n` little flags, and
+every flag's character is decided by where the flag sits in the
+row, counted from the left starting at `0`. Help the robot
+assemble the patterns below.
+
+## 1. Alphabet bunting
+
+Define `alphabet-bunting` to take a non-negative integer `n` off
+the stack and return a string of the first `n` lowercase letters
+of the alphabet.
+
+```factor
+5 alphabet-bunting .
+! => "abcde"
+
+0 alphabet-bunting .
+! => ""
+```
+
+You can assume `n` is at most `26`.
+
+## 2. Counting bunting
+
+Define `counting-bunting` to take `n` and return a string of `n`
+digits where the flag at position `i` shows `i mod 10`.
+
+```factor
+12 counting-bunting .
+! => "012345678901"
+```
+
+## 3. Stripe bunting
+
+Define `stripe-bunting` to alternate between two characters: even
+positions get `*` and odd positions get `-`.
+
+```factor
+6 stripe-bunting .
+! => "*-*-*-"
+
+1 stripe-bunting .
+! => "*"
+```
+
+## 4. Marker bunting
+
+Every fifth flag is a special marker. Define `marker-bunting` so
+that positions `0`, `5`, `10`, … get `|` and the rest get `.`.
+
+```factor
+11 marker-bunting .
+! => "|....|....|"
+```
+
+## 5. Valley bunting
+
+The robot hangs a fixed-size 10-flag bunting that pins to a hook
+at the centre. Counting from the leftmost flag at position `-5`
+up to (but not including) `5`, each flag's character is the
+distance from the centre, written as a digit.
+
+Define `valley-bunting` (taking no inputs) to return that fixed
+string.
+
+```factor
+valley-bunting .
+! => "5432101234"
+```
+
+## Source
+
+### Created by
+
+- @keiravillekode
