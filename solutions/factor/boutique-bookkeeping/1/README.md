@@ -1,0 +1,322 @@
+# Boutique Bookkeeping
+
+Welcome to Boutique Bookkeeping on Exercism's Factor Track.
+If you need help running the tests or submitting your code, check out `HELP.md`.
+If you get stuck on the exercise, check out `HINTS.md`, but try and solve it without using those first :)
+
+## Introduction
+
+This exercise builds on what you saw in [Backyard Birdwatcher][backyard-birdwatcher]
+by introducing the higher-order words that take a *quotation* — a
+piece of code in `[ ]` brackets — to drive the operation.
+
+## Quotations as values
+
+A quotation is just a literal piece of code. You can pass one as
+data to another word:
+
+```factor
+{ 1 2 3 4 5 } [ 2 > ] count .   ! => 3
+```
+
+Here `[ 2 > ]` is a quotation that takes a number and leaves a
+boolean. `count` runs it on each element and tallies the truthy
+results.
+
+## Filtering and rejecting
+
+```
+find      ( seq quot    -- i/f elt/f ) ! first match: index and element, or f f
+find-last ( seq quot    -- i/f elt/f ) ! same, but searches from the end
+filter    ( seq quot    -- newseq )    ! keep elements where quot is truthy
+reject    ( seq quot    -- newseq )    ! drop them instead
+without   ( seq exclude -- newseq )    ! drop every element that's in `exclude`
+sift      ( seq         -- newseq )    ! drop every `f`, keep the rest
+```
+
+```factor
+{ 1 2 3 4 5 } [ 3 > ] find .s
+! => 3            (index)
+! => 4            (element)
+{ 1 2 3 4 5 } [ 3 > ] find-last .s
+! => 4            (index)
+! => 5            (element)
+{ 1 2 3 4 5 } [ even? ] filter .    ! => { 2 4 }
+{ 1 2 3 4 5 } [ even? ] reject .    ! => { 1 3 5 }
+"hello world" " ld" without .       ! => "heowor"
+{ 1 f 2 f 3 } sift .                ! => { 1 2 3 }
+```
+
+`without` treats its second argument as a set: any element of
+`seq` that's `=` to *any* element of `exclude` is dropped.
+`sift` is the no-quotation special case of `reject`: it keeps every
+element except `f`, handy for clearing out the gaps a previous `map`
+left behind.
+
+### Filtering records by a slot
+
+When the elements are *tuples*, the predicate usually projects
+a slot via its auto-generated reader `slot>>` and tests on that:
+
+```factor
+USING: accessors sequences ;
+
+TUPLE: customer name vip? ;
+
+{
+    T{ customer { name "Alice" } { vip? t } }
+    T{ customer { name "Bob"   } { vip? f } }
+    T{ customer { name "Carol" } { vip? t } }
+}
+[ vip?>> ] filter [ name>> ] map .
+! => { "Alice" "Carol" }
+```
+
+## Threading a fixed value with `with`
+
+Sometimes the predicate needs a value that's the same on every
+call — a threshold, a divisor, a target string. `with` (in
+[`kernel`][kernel]) bakes that fixed value into the quotation,
+turning a two-argument quotation `( value elt -- ? )` into the
+one-argument quotation that `filter`, `count`, `map`, and `each`
+expect:
+
+```
+with ( value seq quot -- seq curry )
+```
+
+Every per-element call sees `( value elt )` on the stack —
+fixed value first, current element second:
+
+```factor
+USING: kernel sequences ;
+
+! Count elements greater than 5 — value=5 is threaded in
+5 { 2 7 4 9 1 8 } [ < ] with count .   ! => 3
+```
+
+## Mapping and iterating
+
+`map` (in [`sequences`][sequences]) applies a quotation to each
+element and returns the array of results. `each` does the same
+walk but discards the results — useful when the quotation runs
+purely for its side effects. `2map` walks *two* sequences in
+lockstep and combines corresponding elements; `2each` and
+`2reduce` are its side-effect-only and folding cousins; `zip` is
+the shorthand for "pair them up without combining":
+
+```
+map     ( seq       quot           -- newseq )
+map-as  ( seq       quot exemplar  -- newseq )
+each    ( seq       quot           -- )
+2map    ( seq1 seq2 quot           -- newseq )
+2each   ( seq1 seq2 quot           -- )
+2reduce ( seq1 seq2 identity quot  -- result )
+zip     ( seq1 seq2                -- pairs )
+```
+
+`2reduce` threads an accumulator through both sequences at once —
+its quotation takes `( accumulator elt1 elt2 -- accumulator' )`.
+Here it accumulates a dot product — each pair is multiplied, and
+the products are summed (`1*10 + 2*20 + 3*30`):
+
+```factor
+{ 1 2 3 } { 10 20 30 } 0 [ * + ] 2reduce .   ! => 140
+```
+
+`map-as` is the cousin of `map` that forces the output sequence's
+type — pass an empty `{ }` or `V{ }` as the exemplar to override
+the input-type default (otherwise mapping a string to non-chars
+errors when Factor tries to pack the results back into a string).
+
+```factor
+USING: formatting math sequences ;
+
+{ 1 2 3 } [ sq ] map .                         ! => { 1 4 9 }
+{ 1 2 3 } [ . ] each                           ! prints 1, then 2, then 3
+{ 1 2 3 } { 10 20 30 } [ + ] 2map .            ! => { 11 22 33 }
+{ "x" "y" } { 1 2 } [ "%s%d" sprintf ] 2map .  ! => { "x1" "y2" }
+{ 1 2 3 } { 10 20 30 } [ + . ] 2each           ! prints 11, then 22, then 33
+{ "a" "b" "c" } { 1 2 3 } zip .                ! => { { "a" 1 } { "b" 2 } { "c" 3 } }
+```
+
+Both two-sequence forms stop at the length of the shorter
+input. `zip` is the same as `[ 2array ] 2map` — pair-keeping
+rather than pair-collapsing.
+
+## Sorting
+
+`sort` returns a sorted copy in natural order; `sort-by` (in
+[`sorting`][sorting]) sorts by a key extracted from each element:
+
+```
+sort    ( seq      -- sortedseq )
+sort-by ( seq quot -- sortedseq )
+```
+
+```factor
+{ 3 1 4 1 5 9 2 6 } sort .
+! => { 1 1 2 3 4 5 6 9 }
+
+{ -3 5 -1 4 } [ abs ] sort-by .
+! => { -1 -3 4 5 }
+```
+
+## Aggregating
+
+`map-sum` (in [`sequences`][sequences]) maps a
+quotation across the sequence and sums the results in one pass:
+
+```
+map-sum ( seq quot -- n )
+```
+
+```factor
+{ 1 2 3 4 } [ sq ] map-sum .   ! => 30
+```
+
+## Min and max
+
+`minimum` and `maximum` return the smallest or largest element
+of a sequence outright. `minimum-by` and `maximum-by` (all in
+[`sequences`][sequences]) return the element whose extracted
+key is smallest or largest:
+
+```
+minimum     ( seq      -- elt )
+maximum     ( seq      -- elt )
+minimum-by  ( seq quot -- elt )
+maximum-by  ( seq quot -- elt )
+```
+
+```factor
+{ 3 1 4 1 5 9 2 6 } minimum .       ! => 1
+{ 3 1 4 1 5 9 2 6 } maximum .       ! => 9
+
+{ -3 5 -1 4 } [ abs ] minimum-by .
+! => -1
+```
+
+## Writing your own higher-order word
+
+When *your* word takes a quotation as a runtime argument and
+forwards it to `map`, `filter`, `each`, etc., declare your word
+with `; inline`. That tells the compiler to inline your word at
+each call site, where the quotation is a known literal — without
+it, the compiler has no way to know the quotation's stack effect.
+
+```factor
+USING: math sequences ;
+
+: tax-on ( inventory quot -- total )
+    map-sum ; inline
+
+{ { "shirt" 20 } { "hat" 15 } } [ second 1/10 * ] tax-on .
+! => 3+1/2
+```
+
+Words built only from literal quotations don't need `inline` —
+just the ones that pass an *incoming* quotation through.
+
+## Pulling the second element
+
+For a 2-element array, `second` returns its second element. `first`
+returns the first. Both are in [`sequences`][sequences].
+
+## Numbers to strings
+
+`number>string ( n -- str )` (in [`math.parser`][math.parser])
+turns a number into its decimal-string form:
+
+```factor
+42 number>string .     ! => "42"
+3.5 number>string .    ! => "3.5"
+```
+
+[backyard-birdwatcher]: https://exercism.org/tracks/factor/exercises/backyard-birdwatcher
+[kernel]: https://docs.factorcode.org/content/vocab-kernel.html
+[sequences]: https://docs.factorcode.org/content/vocab-sequences.html
+[sorting]: https://docs.factorcode.org/content/vocab-sorting.html
+[math.parser]: https://docs.factorcode.org/content/vocab-math.parser.html
+
+## Instructions
+
+You're running an online fashion boutique. Each item in your
+inventory is a 2-element array `{ name price }`, and the whole
+inventory is an array of items.
+
+A missing price is recorded as `f`.
+
+## 1. Sort the inventory by price
+
+Define `sort-by-price` to return a new array with the items sorted by
+price, ascending.
+
+```factor
+{ { "Maxi Brown Dress" 65 } { "Red Skirt" 50 } { "Bamboo Socks Cats" 20 } }
+sort-by-price .
+! => { { "Bamboo Socks Cats" 20 } { "Red Skirt" 50 } { "Maxi Brown Dress" 65 } }
+```
+
+## 2. Find items with no price set
+
+Define `with-missing-price` to return an array of just the items
+whose price is `f`.
+
+```factor
+{ { "Black T-shirt" 40 } { "Denim Pants" f } { "Orange T-shirt" 40 } }
+with-missing-price .
+! => { { "Denim Pants" f } }
+```
+
+## 3. Count expensive items
+
+Define `expensive-items` to take an inventory and a price
+threshold, and return how many items cost strictly more than the
+threshold.
+
+```factor
+{ { "Skirt" 50 } { "Coat" 120 } { "Hat" 25 } { "Dress" 80 } }
+50 expensive-items .
+! => 2
+
+{ { "Skirt" 50 } { "Coat" 120 } { "Hat" 25 } { "Dress" 80 } }
+0 expensive-items .
+! => 4
+```
+
+## 4. Find the cheapest item
+
+Define `cheapest-item` to return the item with the lowest price.
+Items with no price (`f`) won't appear in the input.
+
+```factor
+{ { "Skirt" 50 } { "Coat" 120 } { "Hat" 25 } } cheapest-item .
+! => { "Hat" 25 }
+```
+
+## 5. Sum all the prices
+
+Define `total-price` to return the sum of all the prices. Items with
+no price (`f`) won't appear in the input.
+
+```factor
+{ { "Skirt" 50 } { "Coat" 120 } { "Hat" 25 } } total-price .
+! => 195
+```
+
+## 6. Format an item as a price tag
+
+Define `format-price-tag` to return a string of the form `"name: $price"`
+for an item. Items with no price (`f`) won't appear here.
+
+```factor
+{ "Skirt" 50 } format-price-tag .
+! => "Skirt: $50"
+```
+
+## Source
+
+### Created by
+
+- @keiravillekode
