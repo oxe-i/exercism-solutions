@@ -1,0 +1,149 @@
+# Secrets
+
+Welcome to Secrets on Exercism's Factor Track.
+If you need help running the tests or submitting your code, check out `HELP.md`.
+If you get stuck on the exercise, check out `HINTS.md`, but try and solve it without using those first :)
+
+## Introduction
+
+Integers can be viewed not just as numeric values but as patterns of
+bits. Factor's [`math`][math] vocabulary has the standard low-level
+operations on those bit patterns, and the [`math.bitwise`][bitwise]
+vocabulary adds a few helpers for working with fixed-width values.
+
+## Bit shifts
+
+`shift ( m n -- m' )` shifts the bits of `m`. A *positive* `n` shifts
+left (multiplying by 2 each step); a *negative* `n` shifts right
+(dividing by 2 each step):
+
+```factor
+3 2 shift .     ! => 12   (3 << 2)
+24 -3 shift .   ! => 3    (24 >> 3)
+```
+
+For positive integers the right-shift drops bits off the bottom and
+fills with zeros. For *negative* integers, Factor's `shift` is
+arithmetic — it preserves the sign bit, conceptually filling from the
+left with copies of the sign bit. (Factor integers are arbitrary
+precision, so "the left" extends as far as needed.)
+
+## Bitwise logic
+
+The four basic logic operations are:
+
+```
+bitor  ( x y -- z )   ! 1 in either operand
+bitand ( x y -- z )   ! 1 in both operands
+bitxor ( x y -- z )   ! 1 in exactly one operand
+bitnot ( x   -- z )   ! flip every bit
+bit?   ( x n -- ? )   ! true when bit at position n is set
+```
+
+```factor
+0b1011 0b0010 bitor .    ! => 11  (0b1011)
+0b1011 0b0010 bitand .   ! => 2   (0b0010)
+0b1011 0b0010 bitxor .   ! => 9   (0b1001)
+0b1011 bitnot .          ! => -12
+0b1011 0 bit? .          ! => t   (low bit is set)
+0b1011 2 bit? .          ! => f   (bit 2 is clear)
+```
+
+`bitnot` of `0b1011` is `-12` because Factor integers are arbitrary
+precision: flipping the bits of `0b1011` is conceptually "all ones
+with the low four flipped to `0100`", which read as a signed bignum
+is `-12`.
+
+## Treating a value as N bits
+
+`bits ( x n -- y )` from `math.bitwise` masks `x` to its low `n` bits.
+This is the Factor way to "reinterpret a value as an N-bit unsigned
+integer":
+
+```factor
+-1 8 bits .              ! => 255   (lowest 8 bits of -1 are all 1)
+-2144333657 32 bits .    ! => 2150633639
+```
+
+That second example matters for this exercise. If you start with a
+negative twos-complement Int32 value and want to "logically" right-
+shift it (zero-fill from the left) by `amount`, the Factor idiom is:
+
+```
+( value -- shifted )
+32 bits  amount neg  shift
+```
+
+Mask to 32 bits first to switch to the unsigned interpretation, then
+shift. Because the masked value is non-negative, `shift` simply drops
+bits off the bottom and pads with zeros.
+
+[math]: https://docs.factorcode.org/content/vocab-math.html
+[bitwise]: https://docs.factorcode.org/content/vocab-math.bitwise.html
+
+## Instructions
+
+Your friend has just sent you a message with an important secret. Not
+wanting to make it easy for others to read it, the message was
+encrypted by performing a series of bit manipulations. You will need
+to write the words to help decrypt the message.
+
+## 1. Shift back the bits
+
+The first step in decrypting the message is to undo the shifting from
+the encryption process by shifting the bits back to the right. The
+later steps assume that zeros are inserted from the left.
+
+Define `shift-back` taking a 32 bit value and an amount, returning
+the value shifted right by that amount with zero fill.
+
+```factor
+0b1001 2 shift-back .
+! => 0b0010
+```
+
+## 2. Set some bits
+
+Next, there are some bits that need to be set to 1.
+
+Define `set-bits` taking a value and a mask. Every bit of `value`
+where the corresponding bit of `mask` is 1 should be set to 1; every
+other bit is left unchanged.
+
+```factor
+0b0110 0b0101 set-bits .
+! => 0b0111
+```
+
+## 3. Flip specific bits
+
+Some bits are flipped during encryption. They will need to be flipped
+back to decrypt the message.
+
+Define `flip-bits` taking a value and a mask. Every bit of `value`
+where the corresponding bit of `mask` is 1 should be flipped; every
+other bit is left unchanged.
+
+```factor
+0b1100 0b0101 flip-bits .
+! => 0b1001
+```
+
+## 4. Clear specific bits
+
+Lastly, there are also certain bits that always decrypt to 0.
+
+Define `clear-bits` taking a value and a mask. Every bit of `value`
+where the corresponding bit of `mask` is 1 should be cleared to 0;
+every other bit is left unchanged.
+
+```factor
+0b0110 0b0101 clear-bits .
+! => 0b0010
+```
+
+## Source
+
+### Created by
+
+- @keiravillekode
