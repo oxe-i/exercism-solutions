@@ -1,0 +1,304 @@
+# Backyard Birdwatcher
+
+Welcome to Backyard Birdwatcher on Exercism's Factor Track.
+If you need help running the tests or submitting your code, check out `HELP.md`.
+If you get stuck on the exercise, check out `HINTS.md`, but try and solve it without using those first :)
+
+## Introduction
+
+Most data in Factor lives in *sequences*. Arrays, vectors, and
+strings are all sequences and share a common set of words from the
+[`sequences`][sequences] vocabulary.
+
+## Array literals
+
+A literal array uses `{ }` with whitespace between elements:
+
+```factor
+{ 1 2 3 } .          ! => { 1 2 3 }
+{ "a" "b" "c" } .    ! => { "a" "b" "c" }
+```
+
+Arrays are read-only — words like `suffix` and `remove-nth` return
+a *new* sequence rather than mutating the original.
+
+## Length and indexing
+
+```
+length   ( seq -- n   )
+first    ( seq -- elt )
+rest     ( seq -- tailseq )    ! everything but the first element
+last     ( seq -- elt )
+but-last ( seq -- headseq )    ! everything but the last element
+nth      ( n seq -- elt )      ! 0-based
+```
+
+```factor
+{ 10 20 30 } length .       ! => 3
+{ 10 20 30 } first .        ! => 10
+{ 10 20 30 } rest .         ! => { 20 30 }
+{ 10 20 30 } last .         ! => 30
+{ 10 20 30 } but-last .     ! => { 10 20 }
+1 { 10 20 30 } nth .        ! => 20
+```
+
+## Slicing
+
+```
+head ( seq n -- headseq )    ! first n elements
+tail ( seq n -- tailseq )    ! drop first n
+```
+
+```factor
+{ 1 2 3 4 5 } 3 head .   ! => { 1 2 3 }
+{ 1 2 3 4 5 } 3 tail .   ! => { 4 5 }
+```
+
+Both throw if `n` is larger than the sequence. If `n` is too big,
+`index-or-length` shrinks it down to the sequence's length, so the
+slice that follows can't run off the end:
+
+```
+index-or-length ( seq n -- seq n' )
+```
+
+```factor
+{ 10 20 30 40 50 } 3 index-or-length head .   ! => { 10 20 30 }
+{ 10 20 } 3 index-or-length head .            ! => { 10 20 }
+```
+
+The starred variants `head*` and `tail*` count from the end —
+`head*` drops the last `n`, `tail*` keeps the last `n`:
+
+```
+head* ( seq n -- headseq )   ! everything except the last n
+tail* ( seq n -- tailseq )   ! the last n elements
+```
+
+```factor
+{ 1 2 3 4 5 } 2 head* .   ! => { 1 2 3 }
+{ 1 2 3 4 5 } 2 tail* .   ! => { 4 5 }
+```
+
+For an arbitrary slice between two indices, `subseq` takes the
+*start* (inclusive) and *end* (exclusive):
+
+```
+subseq ( from to seq -- subseq )
+```
+
+```factor
+1 4 { 10 20 30 40 50 } subseq .   ! => { 20 30 40 }
+1 4 "hello" subseq .              ! => "ell"
+```
+
+When you have a *start and a length*, add them to get the end:
+
+```factor
+2 dup 3 + "hello world" subseq .  ! => "llo"
+```
+
+(That's the index range `[2, 5)` — three characters starting at
+position 2.)
+
+The reverse question — *where* a subsequence occurs — is answered
+by `subseq-index`, which returns the starting index of the first
+match, or `f` when there is none:
+
+```
+subseq-index ( seq subseq -- i/f )
+```
+
+```factor
+"hello world" "o w" subseq-index .   ! => 4
+"hello world" "xyz" subseq-index .   ! => f
+```
+
+## Padding
+
+```
+pad-head ( seq n elt -- padded )    ! prepend copies of elt
+pad-tail ( seq n elt -- padded )    ! append copies of elt
+```
+
+Both extend `seq` until its length is at least `n`. If `seq` is
+already that long, it is returned unchanged.
+
+```factor
+{ 2 5 0 } 6 0 pad-tail .   ! => { 2 5 0 0 0 0 }
+{ 4 1 } 5 9 pad-head .     ! => { 9 9 9 4 1 }
+```
+
+## The same words work on strings
+
+A string is a sequence of characters, so everything above works on
+strings too — the result is just another string instead of an array:
+
+```factor
+"hello" length .            ! => 5
+"hello" 3 head .             ! => "hel"
+"abc" 6 CHAR: . pad-tail .   ! => "abc..."
+```
+
+## Aggregating
+
+`sum` and `product` (in [`sequences`][sequences])
+add or multiply the elements of a numeric sequence:
+
+```factor
+{ 2 5 0 7 } sum .        ! => 14
+{ 2 5 3 7 } product .    ! => 210
+```
+
+`count` runs a predicate over the sequence and returns how many
+elements made it true:
+
+```
+count ( seq quot -- n )
+```
+
+```factor
+{ 2 5 0 7 4 1 } [ even? ] count .    ! => 3
+```
+
+## Predicates over the whole sequence
+
+```
+any?   ( seq quot -- ? )
+all?   ( seq quot -- ? )
+empty? ( seq -- ? )
+```
+
+```factor
+{ 2 5 0 7 } [ 4 > ] any? .      ! => t
+{ 2 5 0 7 } [ 0 > ] all? .      ! => f
+```
+
+## Building a new sequence
+
+`suffix` adds an element to the end of a sequence; `prefix` adds one
+to the front. `unclip` peels off the first element and `unclip-last`
+peels off the last:
+
+```
+prefix      ( seq elt -- newseq )
+suffix      ( seq elt -- newseq )
+unclip      ( seq -- rest first )
+unclip-last ( seq -- butlast last )
+```
+
+```factor
+{ 7 9 } 3 prefix .             ! => { 3 7 9 }
+{ 7 9 } 3 suffix .             ! => { 7 9 3 }
+{ 4 0 9 } unclip .s
+! => { 0 9 }
+! => 4
+```
+
+Combining `unclip-last` and `suffix` gives a non-destructive update
+of the last element (and `unclip` + `prefix` does the same for the
+first):
+
+```factor
+{ 10 20 30 } unclip-last 2 * suffix .
+! => { 10 20 60 }
+```
+
+## Coercing between sequence types
+
+`>array`, `>vector`, and `>string` (in [`arrays`][arrays] and
+the corresponding vocabularies) force a sequence into a
+particular concrete type. Useful when an operation returned a
+slice or generic sequence and you need an array (or string)
+back.
+
+```factor
+{ 1 2 3 } 1 tail >array .   ! => { 2 3 }
+"hello" >array .            ! => { 104 101 108 108 111 }
+{ 65 66 67 } >string .      ! => "ABC"
+```
+
+[arrays]: https://docs.factorcode.org/content/vocab-arrays.html
+[sequences]: https://docs.factorcode.org/content/vocab-sequences.html
+
+## Instructions
+
+You're an avid bird watcher who keeps a daily count of the birds
+visiting your garden. The counts are stored in an array, oldest day
+first.
+
+## 1. Today's count
+
+Define `today` to take the array of daily counts off the stack and
+return the count for today.
+
+```factor
+{ 2 5 0 7 4 1 } today .
+! => 1
+```
+
+## 2. Increment today's count
+
+Define `increment-todays-count` to return a new array with today's
+count increased by one. The original array should not be modified.
+
+```factor
+{ 2 5 0 7 4 1 } increment-todays-count .
+! => { 2 5 0 7 4 2 }
+```
+
+## 3. Was there a day with no birds?
+
+Define `has-day-without-birds?` to return `t` if at least one day
+recorded zero birds, otherwise `f`.
+
+```factor
+{ 2 5 0 7 4 1 } has-day-without-birds? .
+! => t
+
+{ 2 5 1 } has-day-without-birds? .
+! => f
+```
+
+## 4. Sum the first few days
+
+Define `count-for-first-days` to take an array of counts and a number
+`n`, and return the sum of the first `n` counts.
+
+```factor
+{ 2 5 0 7 4 1 } 4 count-for-first-days .
+! => 14
+```
+
+## 5. Count the busy days
+
+A busy day is one with five or more birds. Define `busy-days` to
+return the number of busy days in the array.
+
+```factor
+{ 2 5 0 7 4 1 } busy-days .
+! => 2
+```
+
+## 6. Pad missing days
+
+If you didn't watch on every day of an `n`-day stretch, fill the
+missing trailing days with `0`. Define `pad-missing-days` to take
+an array of counts and a target length `n`, and return an array
+of length at least `n` whose extra slots are `0`. Existing counts
+must be preserved unchanged; if the input is already at least `n`
+long, return it unchanged.
+
+```factor
+{ 2 5 0 } 7 pad-missing-days .
+! => { 2 5 0 0 0 0 0 }
+
+{ 4 1 6 8 } 3 pad-missing-days .
+! => { 4 1 6 8 }
+```
+
+## Source
+
+### Created by
+
+- @keiravillekode
