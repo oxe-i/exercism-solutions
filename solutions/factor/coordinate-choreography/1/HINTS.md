@@ -1,0 +1,42 @@
+# Hints
+
+## General
+
+- A "transformation" is a quotation `( point -- point' )` where a
+  point is a 2-array.
+- `2array` (in [`arrays`][arrays]) packs the top two stack values
+  into a 2-array.
+
+## 1. Translate the coordinates
+
+- `v+` from [`math.vectors`][math.vectors] adds two vectors element-
+  wise.
+- Build the offset as a 2-array, then `curry` it into `[ v+ ]`.
+
+## 2. Scale the coordinates
+
+- Same pattern as task 1 with `v*` instead of `v+`.
+
+## 3. Compose two transformations
+
+- `compose` in [`kernel`][kernel] joins two quotations into one.
+
+## 4. Apply a transformation
+
+- The transformation's effect is `( p -- p' )`. Use
+  `call( p -- p' )`.
+
+## 5. Transform many points at once
+
+- `map` (in [`sequences`][sequences]) walks the sequence and
+  applies a quotation to each element.
+- That per-element quotation needs to know which transformation
+  to use — same `curry`-or-fry capture you used in tasks 1 and 2,
+  just applied at the per-element level instead of the whole
+  transformation.
+- `apply-transformation` from task 4 is the natural body.
+
+[arrays]: https://docs.factorcode.org/content/vocab-arrays.html
+[kernel]: https://docs.factorcode.org/content/vocab-kernel.html
+[math.vectors]: https://docs.factorcode.org/content/vocab-math.vectors.html
+[sequences]: https://docs.factorcode.org/content/vocab-sequences.html
