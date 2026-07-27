@@ -1,0 +1,4 @@
+package leap
+depends = contrib
+modules = Leap
+sourcedir = "src"
