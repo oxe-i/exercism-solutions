@@ -1,0 +1,4 @@
+package hello-world
+depends = contrib
+modules = HelloWorld
+sourcedir = "src"
