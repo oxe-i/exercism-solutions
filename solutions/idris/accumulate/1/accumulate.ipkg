@@ -1,0 +1,4 @@
+package accumulate
+depends = contrib
+modules = Accumulate
+sourcedir = "src"
