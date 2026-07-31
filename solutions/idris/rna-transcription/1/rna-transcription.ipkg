@@ -1,0 +1,4 @@
+package rna-transcription
+depends = contrib
+modules = RnaTranscription
+sourcedir = "src"
