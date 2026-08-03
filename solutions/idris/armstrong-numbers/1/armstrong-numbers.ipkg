@@ -1,0 +1,4 @@
+package armstrong-numbers
+depends = contrib
+modules = ArmstrongNumbers
+sourcedir = "src"
